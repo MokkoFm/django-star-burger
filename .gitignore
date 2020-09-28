@@ -1,3 +1,9 @@
+bundles/**
+db.sqlite3
+.cache
+node_modules/
+media/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -25,6 +31,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.editorconfig
 MANIFEST
 
 # PyInstaller
@@ -123,3 +130,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+media
+/media
