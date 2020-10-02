@@ -2,7 +2,18 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.shortcuts import reverse
 
-from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory
+from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory, Order, OrderProductItem
+
+
+class OrderProductItemInline(admin.TabularInline):
+    model = OrderProductItem
+    extra = 0
+
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['firstname', 'lastname', 'address', 'phonenumber']
+    inlines = [OrderProductItemInline]
 
 
 class RestaurantMenuItemInline(admin.TabularInline):

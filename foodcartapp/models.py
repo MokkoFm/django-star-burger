@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class Restaurant(models.Model):
@@ -64,3 +65,30 @@ class RestaurantMenuItem(models.Model):
         unique_together = [
             ['restaurant', 'product']
         ]
+
+
+class Order(models.Model):
+    firstname = models.CharField(max_length=50, verbose_name='имя')
+    lastname = models.CharField(max_length=50, verbose_name='фамилия', blank=True)
+    phonenumber = models.CharField(max_length=25, verbose_name='телефон')
+    address = models.CharField(max_length=100, verbose_name='фамилия')
+
+    def __str__(self):
+        return f"{self.lastname}: {self.address}"
+
+    class Meta:
+        verbose_name = "заказ на доставку"
+        verbose_name_plural = "заказы на доставку"
+
+
+class OrderProductItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name='продукт в заказе', related_name='order')
+    quantity = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(25)], verbose_name='количество')
+
+    def __str__(self):
+        return f"{self.product}: {self.quantity}"
+    
+    class Meta:
+        verbose_name = "товар в заказе"
+        verbose_name_plural = "товары в заказе"
