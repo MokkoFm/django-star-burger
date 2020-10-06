@@ -61,18 +61,20 @@ def register_order(request):
     data = json.loads(request.body.decode())
     print(data)
 
-    order = Order.objects.get_or_create(
+    order = Order.objects.create(
         firstname=data['firstname'],
         lastname=data['lastname'],
         phonenumber=data['phonenumber'],
         address=data['address'],
     )
 
-    items = OrderProductItem.objects.get_or_create(
-        order=order,
-        product=data['product'],
-        quantity=data['quantity']
-    )
+    products = [(Product.objects.get(id=product['product']), product['quantity']) for product in data['products']]
+    for product, quantity in products:
+        OrderProductItem.objects.create(
+            order=order,
+            product=product,
+            quantity=quantity
+        )
 
 
     return JsonResponse(data, safe=False, json_dumps_params={
