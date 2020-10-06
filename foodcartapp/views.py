@@ -61,7 +61,9 @@ def product_list_api(request):
 @api_view(['POST'])
 def register_order(request):
     data = request.data
-    print(data)
+    error_dict = {
+            "error": "products key not presented or not a list"
+        }
 
     order = Order.objects.create(
         firstname=data['firstname'],
@@ -70,12 +72,21 @@ def register_order(request):
         address=data['address'],
     )
 
-    products = [(Product.objects.get(id=product['product']), product['quantity']) for product in data['products']]
-    for product, quantity in products:
-        OrderProductItem.objects.create(
-            order=order,
-            product=product,
-            quantity=quantity
-        )
+    try:
+        products = [(Product.objects.get(id=product['product']), product['quantity']) for product in data['products']]
+        for product, quantity in products:
+            OrderProductItem.objects.create(
+                order=order,
+                product=product,
+                quantity=quantity
+            )
+
+        if data['products'] == []:
+            data = error_dict
+
+    except TypeError:
+        data = error_dict
+    except KeyError:
+        data = error_dict
 
     return Response(data)
