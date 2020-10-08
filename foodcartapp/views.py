@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from .models import Product, Order, OrderProductItem
 from rest_framework.serializers import ValidationError
 from rest_framework.serializers import ModelSerializer
+from rest_framework.renderers import JSONRenderer
 
 
 def banners_list_api(request):
@@ -77,6 +78,7 @@ class OrderSerializer(ModelSerializer):
 @api_view(['POST'])
 def register_order(request):
     data = request.data
+    print(data)
     serializer = OrderSerializer(data=data)
     serializer.is_valid(raise_exception=True)
 
@@ -99,4 +101,5 @@ def register_order(request):
             quantity=quantity
         )
 
-    return Response(serializer.validated_data)
+    content = JSONRenderer().render(serializer.data, renderer_context={'indent':4})
+    return Response(serializer.data)
