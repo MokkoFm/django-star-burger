@@ -4,6 +4,8 @@ import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Product, Order, OrderProductItem
+from rest_framework.serializers import ValidationError
+from rest_framework.serializers import ModelSerializer
 
 
 def banners_list_api(request):
@@ -58,35 +60,43 @@ def product_list_api(request):
     })
 
 
+class OrderProductItemSerializer(ModelSerializer):
+    class Meta:
+        model = OrderProductItem
+        fields = ['product', 'quantity']
+
+
+class OrderSerializer(ModelSerializer):
+    products = OrderProductItemSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ['products', 'firstname', 'lastname', 'phonenumber', 'address']
+
+
 @api_view(['POST'])
 def register_order(request):
     data = request.data
-    error_dict = {
-            "error": "products key not presented or not a list"
-        }
+    serializer = OrderSerializer(data=data)
+    serializer.is_valid(raise_exception=True)
 
     order = Order.objects.create(
-        firstname=data['firstname'],
-        lastname=data['lastname'],
-        phonenumber=data['phonenumber'],
-        address=data['address'],
+        firstname=serializer.validated_data['firstname'],
+        lastname=serializer.validated_data['lastname'],
+        phonenumber=serializer.validated_data['phonenumber'],
+        address=serializer.validated_data['address'],
     )
 
-    try:
-        products = [(Product.objects.get(id=product['product']), product['quantity']) for product in data['products']]
-        for product, quantity in products:
-            OrderProductItem.objects.create(
-                order=order,
-                product=product,
-                quantity=quantity
-            )
+    if serializer.validated_data['products'] == []:
+        raise ValidationError('Expects not empty list of products')
 
-        if data['products'] == []:
-            data = error_dict
+    products = [(Product.objects.get(id=product['product']), product['quantity']) for product in data['products']]
 
-    except TypeError:
-        data = error_dict
-    except KeyError:
-        data = error_dict
+    for product, quantity in products:
+        OrderProductItem.objects.create(
+            order=order,
+            product=product,
+            quantity=quantity
+        )
 
-    return Response(data)
+    return Response(serializer.validated_data)
