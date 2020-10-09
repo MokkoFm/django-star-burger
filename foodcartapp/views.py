@@ -7,6 +7,7 @@ from .models import Product, Order, OrderProductItem
 from rest_framework.serializers import ValidationError
 from rest_framework.serializers import ModelSerializer
 from rest_framework.renderers import JSONRenderer
+from django.db import transaction
 
 
 def banners_list_api(request):
@@ -76,6 +77,7 @@ class OrderSerializer(ModelSerializer):
 
 
 @api_view(['POST'])
+@transaction.atomic
 def register_order(request):
     data = request.data
     print(data)
@@ -101,5 +103,4 @@ def register_order(request):
             quantity=quantity
         )
 
-    content = JSONRenderer().render(serializer.data, renderer_context={'indent':4})
     return Response(serializer.data)
