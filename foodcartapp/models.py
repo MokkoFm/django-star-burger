@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db.models import Sum
 
 
 class Restaurant(models.Model):
@@ -76,6 +77,10 @@ class Order(models.Model):
     def __str__(self):
         return f"{self.lastname}: {self.address}"
 
+    @property
+    def cart_total(self):
+        return self.order_items.all().aggregate(cart_total=Sum('product_total'))
+
     class Meta:
         verbose_name = "заказ на доставку"
         verbose_name_plural = "заказы на доставку"
@@ -85,10 +90,15 @@ class OrderProductItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name='продукт в заказе', related_name='order')
     quantity = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(25)], verbose_name='количество')
+    product_total = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='сумма одного товара', default=0)
 
     def __str__(self):
         return f"{self.product}: {self.quantity}"
-    
+
+    def save(self, *args, **kwargs):
+        self.product_total = self.product.price * self.quantity
+        return super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = "товар в заказе"
         verbose_name_plural = "товары в заказе"
