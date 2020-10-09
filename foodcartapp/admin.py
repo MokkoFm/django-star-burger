@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.shortcuts import reverse
-
+from django.http import HttpResponseRedirect
 from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory, Order, OrderProductItem
+from django.utils.http import is_safe_url
 
 
 class OrderProductItemInline(admin.TabularInline):
@@ -14,6 +15,17 @@ class OrderProductItemInline(admin.TabularInline):
 class OrderAdmin(admin.ModelAdmin):
     list_display = ['firstname', 'lastname', 'address', 'phonenumber']
     inlines = [OrderProductItemInline]
+
+    def response_change(self, request, obj):
+        result = super().response_change(request, obj)
+        if "next" in request.GET:
+            redirect_to = request.GET["next"]
+            if not is_safe_url(url=redirect_to, allowed_hosts=request.get_host()):
+                redirect_to = reverse("pages-root")
+            else:
+                return HttpResponseRedirect(redirect_to)
+        else:
+            return result
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
