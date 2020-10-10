@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import Sum
+from django.utils import timezone
 
 
 class Restaurant(models.Model):
@@ -74,11 +75,21 @@ class Order(models.Model):
         ('YES', 'Обработанный'),
     ]
 
+    PAYMENT_METHOD = [
+        ('Cash', 'Наличными'),
+        ('Card', 'По карте'),
+    ]
+
     firstname = models.CharField(max_length=50, verbose_name='имя')
     lastname = models.CharField(max_length=50, verbose_name='фамилия', blank=True)
     phonenumber = models.CharField(max_length=25, verbose_name='телефон')
-    address = models.CharField(max_length=100, verbose_name='фамилия')
-    status = models.CharField(max_length=3, choices=STATUS, default='NO')
+    address = models.CharField(max_length=100, verbose_name='адрес')
+    status = models.CharField(max_length=3, choices=STATUS, default='NO', verbose_name='статус')
+    comment = models.TextField(verbose_name='комментарий', blank=True)
+    registrated_at = models.DateTimeField(default=timezone.now, verbose_name='время регистрации заказа')
+    called_at = models.DateTimeField(verbose_name='время звонка клиенту', null=True, blank=True)
+    delivered_at = models.DateTimeField(verbose_name='время доставки заказа клиенту', null=True, blank=True)
+    payment_method = models.CharField(max_length=4, choices=PAYMENT_METHOD, default='Неизвестно', verbose_name='способ оплаты')
 
     def __str__(self):
         return f"{self.lastname}: {self.address}"
