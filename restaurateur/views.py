@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
-from foodcartapp.models import Product, Restaurant, Order
+from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
 from django.db.models import Sum
 
 
@@ -95,11 +95,32 @@ def view_restaurants(request):
     })
 
 
+def serialize_restaurants(restaurants):
+    serialized_restaurants = []
+    for restaurant in restaurants:
+        serialized_restaurants.append(
+            {
+                'name': restaurant.name,
+                'menu_items': [menu_item.product.name for menu_item in restaurant.menu_items.all() if menu_item.availability],
+            }
+        )
+    return serialized_restaurants
+
+
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
     orders = Order.objects.all()
     orders_items = []
+    restaurants = Restaurant.objects.all()
+    serialized_restaurants = serialize_restaurants(restaurants)
+    possible_restaurants = []
+
     for order in orders:
+        order_items = set([item.product.name for item in order.order_items.all()])
+        for restaurant in serialized_restaurants:
+            if order_items.issubset(restaurant['menu_items']):
+                possible_restaurants.append(restaurant['name'])
+
         order_info = {
             'id': order.id,
             'cart_total': order.cart_total['cart_total'],
@@ -110,9 +131,10 @@ def view_orders(request):
             'status': order.get_status_display(),
             'comment': order.comment,
             'payment_method': order.get_payment_method_display(),
+            'restaurants': set(possible_restaurants)
         }
         orders_items.append(order_info)
 
     return render(request, template_name='order_items.html', context={
-        'order_items': orders_items
+        'order_items': orders_items,
     })
