@@ -3,12 +3,16 @@ from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
-
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
-
 from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
 from django.db.models import Sum
+import requests
+import os
+from geopy import distance
+from environs import Env
+env = Env()
+env.read_env()
 
 
 class Login(forms.Form):
@@ -95,13 +99,25 @@ def view_restaurants(request):
     })
 
 
-def serialize_restaurants(restaurants):
+def fetch_coordinates(apikey, place):
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    params = {"geocode": place, "apikey": apikey, "format": "json"}
+    response = requests.get(base_url, params=params)
+    response.raise_for_status()
+    places_found = response.json()['response']['GeoObjectCollection']['featureMember']
+    most_relevant = places_found[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    return lon, lat
+
+
+def serialize_restaurants(restaurants, apikey):
     serialized_restaurants = []
     for restaurant in restaurants:
         serialized_restaurants.append(
             {
                 'name': restaurant.name,
                 'menu_items': [menu_item.product.name for menu_item in restaurant.menu_items.all() if menu_item.availability],
+                'coords': fetch_coordinates(apikey, restaurant.address)
             }
         )
     return serialized_restaurants
@@ -109,10 +125,11 @@ def serialize_restaurants(restaurants):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
+    apikey = env('APIKEY')
     orders = Order.objects.all()
     orders_items = []
     restaurants = Restaurant.objects.all()
-    serialized_restaurants = serialize_restaurants(restaurants)
+    serialized_restaurants = serialize_restaurants(restaurants, apikey)
     possible_restaurants = []
 
     for order in orders:
@@ -120,6 +137,9 @@ def view_orders(request):
         for restaurant in serialized_restaurants:
             if order_items.issubset(restaurant['menu_items']):
                 possible_restaurants.append(restaurant['name'])
+
+        order_coords = fetch_coordinates(apikey, order.address)
+        restaurant_coords = [restaurant['coords'] for restaurant in serialized_restaurants]
 
         order_info = {
             'id': order.id,
@@ -131,7 +151,8 @@ def view_orders(request):
             'status': order.get_status_display(),
             'comment': order.comment,
             'payment_method': order.get_payment_method_display(),
-            'restaurants': set(possible_restaurants)
+            'restaurants': set(possible_restaurants),
+            'distance': distance.distance(order_coords, restaurant_coords[0]).km
         }
         orders_items.append(order_info)
 
