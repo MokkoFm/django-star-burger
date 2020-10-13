@@ -8,8 +8,8 @@ from django.contrib.auth import views as auth_views
 from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
 from django.db.models import Sum
 import requests
-import os
 from geopy import distance
+from operator import itemgetter
 from environs import Env
 env = Env()
 env.read_env()
@@ -129,17 +129,18 @@ def view_orders(request):
     orders = Order.objects.all()
     orders_items = []
     restaurants = Restaurant.objects.all()
-    serialized_restaurants = serialize_restaurants(restaurants, apikey)
-    possible_restaurants = []
 
     for order in orders:
+        serialized_restaurants = serialize_restaurants(restaurants, apikey)
         order_items = set([item.product.name for item in order.order_items.all()])
-        for restaurant in serialized_restaurants:
-            if order_items.issubset(restaurant['menu_items']):
-                possible_restaurants.append(restaurant['name'])
-
         order_coords = fetch_coordinates(apikey, order.address)
-        restaurant_coords = [restaurant['coords'] for restaurant in serialized_restaurants]
+        possible_restaurants = []
+        for restaurant in serialized_restaurants:
+            restaurant['distance'] = round(distance.distance(restaurant['coords'], order_coords).km, 2)
+            if order_items.issubset(restaurant['menu_items']):
+                possible_restaurants.append(restaurant)
+
+        sorted_possible_restaurants = sorted(possible_restaurants, key=itemgetter('distance')) 
 
         order_info = {
             'id': order.id,
@@ -151,8 +152,7 @@ def view_orders(request):
             'status': order.get_status_display(),
             'comment': order.comment,
             'payment_method': order.get_payment_method_display(),
-            'restaurants': set(possible_restaurants),
-            'distance': distance.distance(order_coords, restaurant_coords[0]).km
+            'restaurants': sorted_possible_restaurants,
         }
         orders_items.append(order_info)
 
