@@ -80,7 +80,6 @@ class OrderSerializer(ModelSerializer):
 @transaction.atomic
 def register_order(request):
     data = request.data
-    print(data)
     serializer = OrderSerializer(data=data)
     serializer.is_valid(raise_exception=True)
 

@@ -5,8 +5,9 @@ from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
-from foodcartapp.models import Product, Restaurant, Order, RestaurantMenuItem
-from django.db.models import Sum
+from foodcartapp.models import Product, Restaurant, Order
+
+from django.core.cache import cache
 import requests
 from geopy import distance
 from operator import itemgetter
@@ -80,7 +81,8 @@ def view_products(request):
             **default_availability,
             **{item.restaurant_id: item.availability for item in product.menu_items.all()},
         }
-        orderer_availability = [availability[restaurant.id] for restaurant in restaurants]
+        orderer_availability = [availability[restaurant.id]
+                                for restaurant in restaurants]
 
         products_with_restaurants.append(
             (product, orderer_availability)
@@ -104,7 +106,8 @@ def fetch_coordinates(apikey, place):
     params = {"geocode": place, "apikey": apikey, "format": "json"}
     response = requests.get(base_url, params=params)
     response.raise_for_status()
-    places_found = response.json()['response']['GeoObjectCollection']['featureMember']
+    places_found = response.json(
+    )['response']['GeoObjectCollection']['featureMember']
     most_relevant = places_found[0]
     lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
     return lon, lat
@@ -117,7 +120,7 @@ def serialize_restaurants(restaurants, apikey):
             {
                 'name': restaurant.name,
                 'menu_items': [menu_item.product.name for menu_item in restaurant.menu_items.all() if menu_item.availability],
-                'coords': fetch_coordinates(apikey, restaurant.address)
+                'coords': cache.get_or_set(f'restaurant-{restaurant.id}', fetch_coordinates(apikey, restaurant.address), 60*15)
             }
         )
     return serialized_restaurants
@@ -132,15 +135,19 @@ def view_orders(request):
 
     for order in orders:
         serialized_restaurants = serialize_restaurants(restaurants, apikey)
-        order_items = set([item.product.name for item in order.order_items.all()])
-        order_coords = fetch_coordinates(apikey, order.address)
+        order_items = set(
+            [item.product.name for item in order.order_items.all()])
+        order_coords = cache.get_or_set(
+            f'order-{order.id}', fetch_coordinates(apikey, order.address), 30)
         possible_restaurants = []
         for restaurant in serialized_restaurants:
-            restaurant['distance'] = round(distance.distance(restaurant['coords'], order_coords).km, 2)
+            restaurant['distance'] = round(distance.distance(
+                restaurant['coords'], order_coords).km, 2)
             if order_items.issubset(restaurant['menu_items']):
                 possible_restaurants.append(restaurant)
 
-        sorted_possible_restaurants = sorted(possible_restaurants, key=itemgetter('distance')) 
+        sorted_possible_restaurants = sorted(
+            possible_restaurants, key=itemgetter('distance'))
 
         order_info = {
             'id': order.id,

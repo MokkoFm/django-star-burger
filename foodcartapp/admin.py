@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect
-from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory, Order, OrderProductItem
+from .models import Restaurant, Product, RestaurantMenuItem
+from .models import ProductCategory, Order, OrderProductItem
 from django.utils.http import is_safe_url
 
 
@@ -65,8 +66,6 @@ class ProductAdmin(admin.ModelAdmin):
         'category',
     ]
     search_fields = [
-        # FIXME SQLite can not convert letter case for cyrillic words properly, so search will be buggy.
-        # Migration to PostgreSQL is necessary
         'name',
         'category',
     ]
